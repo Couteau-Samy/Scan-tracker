@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mon Lecteur de Scans Privé 📖</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #121214;
+            color: #e1e1e6;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+        }
+        /* Menu de gauche (Dashboard) */
+        .sidebar {
+            width: 300px;
+            background: #202024;
+            padding: 20px;
+            box-sizing: border-box;
+            border-right: 2px solid #323238;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        /* Zone de lecture (Images du Scan) */
+        .viewer {
+            flex: 1;
+            height: 100vh;
+            overflow-y: auto;
+            background: #0b0b0c;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            scroll-behavior: smooth;
+        }
+        .viewer img {
+            max-width: 100%;
+            margin-bottom: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        h2 { color: #00adb5; margin-top: 0; font-size: 20px; }
+        input, button {
+            width: 100%;
+            padding: 12px;
+            border-radius: 6px;
+            border: none;
+            box-sizing: border-box;
+            background: #121214;
+            color: white;
+            border: 1px solid #323238;
+            margin-bottom: 8px;
+        }
+        button {
+            background: #00adb5;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        button:hover { background: #008c95; }
+        .scan-item {
+            background: #323238;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .scan-item:hover { background: #41414c; }
+        .status {
+            font-size: 12px;
+            color: #04d361;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- PANNEAU DE GAUCHE -->
+    <div class="sidebar">
+        <div>
+            <h2>Nouveau Chapitre</h2>
+            <input type="text" id="mangaTitle" placeholder="Nom (ex: One Piece 1100)">
+            <input type="text" id="scanUrl" placeholder="URL du site de scan">
+            <button id="btnLoad">🚀 Charger & Lire</button>
+        </div>
+
+        <div id="statusMsg" class="status"></div>
+
+        <div>
+            <h2>Mes Lectures</h2>
+            <div id="scansList">Chargement...</div>
+        </div>
+    </div>
+
+    <!-- ZONE DE LECTURE (SANS IFRAME, QUE DES IMAGES) -->
+    <div class="viewer" id="viewerZone">
+        <div style="padding: 40px; text-align: center; color: #a0a0a2;">
+            ← Entre un lien ou sélectionne un scan pour l'afficher ici.
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, doc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // ⚠️ METS TES PROPRES INFOS FIREBASE ICI ⚠️
+        const firebaseConfig = {
+            apiKey: "TON_API_KEY",
+            authDomain: "TON_AUTH_DOMAIN",
+            projectId: "TON_PROJECT_ID",
+            storageBucket: "TON_STORAGE_BUCKET",
+            messagingSenderId: "TON_MESSAGING_SENDER_ID",
+            appId: "TON_APP_ID"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let currentScanId = null;
+        const viewerZone = document.getElementById('viewerZone');
+        const statusMsg = document.getElementById('statusMsg');
+
+        // ACTION 1 : LIRE LE SITE DISTANT, EXTRAIRE LES IMAGES ET LES AFFICHER
+        document.getElementById('btnLoad').addEventListener('click', async () => {
+            const title = document.getElementById('mangaTitle').value;
+            const url = document.getElementById('scanUrl').value;
+
+            if(!title || !url) return alert("Remplis le titre et l'URL !");
+            statusMsg.innerText = "Chargement du chapitre...";
+
+            try {
+                // Utilisation du nouveau proxy corsproxy.io
+                const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`);
+                const htmlText = await response.text();
+                
+                // Transformation du texte en HTML manipulable
+                const parser = new DOMParser();
+                const docHTML = parser.parseFromString(htmlText, 'text/html');
+                
+                // Extraction de toutes les images
+                const images = docHTML.querySelectorAll('img');
+                let foundImages = [];
+
+                images.forEach(img => {
+                    let src = img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || img.getAttribute('data-src-img');
+                    if(src) {
+                        src = src.trim();
+                        // Gestion des URLs relatives
+                        if(src.startsWith('/')) {
+                            const origin = new URL(url).origin;
+                            src = origin + src;
+                        }
+                        // On filtre pour ne garder que les vraies images de scan
+                        if(src.includes('.jpg') || src.includes('.png') || src.includes('.webp') || src.includes('chapter') || src.includes('sushiscan')) {
+                            if(!foundImages.includes(src)) {
+                                foundImages.push(src);
+                            }
+                        }
+                    }
+                });
+
+                if(foundImages.length === 0) {
+                    statusMsg.style.color = "#ff2a7a";
+                    statusMsg.innerText = "Erreur : Impossible d'extraire les images.";
+                    return;
+                }
+
+                // Sauvegarde initiale dans Firebase
+                const docRef = await addDoc(collection(db, "dynamic_scans"), {
+                    title: title,
+                    url: url,
+                    images: foundImages,
+                    scrollPos: 0,
+                    date: new Date()
+                });
+
+                currentScanId = docRef.id;
+                afficherImages(foundImages, 0);
+                statusMsg.style.color = "#04d361";
+                statusMsg.innerText = "Lecture en cours ! Synchro OK";
+
+            } catch (error) {
+                console.error(error);
+                statusMsg.style.color = "#ff2a7a";
+                statusMsg.innerText = "Erreur CORS ou réseau.";
+            }
+        });
+
+        // Fonction pour afficher les images
+        function afficherImages(imagesArray, savedScroll) {
+            viewerZone.innerHTML = ""; 
+            
+            imagesArray.forEach(src => {
+                const img = document.createElement('img');
+                img.src = src;
+                img.loading = "lazy";
+                viewerZone.appendChild(img);
+            });
+
+            // On force le scroll enregistré après le chargement du DOM
+            setTimeout(() => {
+                viewerZone.scrollTop = savedScroll;
+            }, 1000);
+        }
+
+        // ACTION 2 : ÉCOUTER LE SCROLL ET ENREGISTRER DYNAMIQUEMENT DANS FIREBASE
+        let timeoutId;
+        viewerZone.addEventListener('scroll', () => {
+            if (!currentScanId) return;
+
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(async () => {
+                const currentScrollY = viewerZone.scrollTop;
+                
+                try {
+                    const scanRef = doc(db, "dynamic_scans", currentScanId);
+                    await updateDoc(scanRef, {
+                        scrollPos: Math.round(currentScrollY),
+                        date: new Date()
+                    });
+                    statusMsg.style.color = "#04d361";
+                    statusMsg.innerText = "Position synchronisée !";
+                } catch (err) {
+                    console.error("Erreur de sauvegarde Firebase:", err);
+                }
+            }, 1500); 
+        });
+
+        // ACTION 3 : CHARGER LA LISTE DES SCANS DEPUIS FIREBASE
+        onSnapshot(collection(db, "dynamic_scans"), (snapshot) => {
+            const list = document.getElementById('scansList');
+            list.innerHTML = "";
+            
+            snapshot.forEach((doc) => {
+                const scan = doc.data();
+                const div = document.createElement('div');
+                div.className = "scan-item";
+                div.innerHTML = `<strong>${scan.title}</strong><br><small style="color:#aaa;">Reprendre à ${scan.scrollPos}px</small>`;
+                
+                div.onclick = () => {
+                    currentScanId = doc.id;
+                    statusMsg.style.color = "#00adb5";
+                    statusMsg.innerText = "Reprise de la progression...";
+                    afficherImages(scan.images, scan.scrollPos);
+                };
+                list.appendChild(div);
+            });
+        });
+    </script>
+</body>
+</html>
