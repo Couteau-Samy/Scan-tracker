@@ -3,266 +3,491 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Suivi de Lectures - Firebase</title>
+    <title>Suivi de Scans — Manga Tracker</title>
     <style>
-        body {
-            margin: 0;
-            font-family: sans-serif;
-            background-color: #1a1a1a;
-            color: #fff;
-            display: flex;
-            height: 100vh;
-            overflow: hidden;
+        :root {
+            --bg-dark: #121214;
+            --bg-sidebar: #1a1a1e;
+            --bg-card: #222226;
+            --accent: #00b4d8;
+            --accent-hover: #0096b6;
+            --green: #2a9d8f;
+            --red: #e63946;
+            --text-main: #f0f0f0;
+            --text-muted: #a0a0ab;
+            --border: #33333a;
         }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Layout Responsive */
+        .app-container {
+            display: flex;
+            width: 100vw;
+            min-height: 100vh;
+        }
+
+        @media (max-width: 768px) {
+            .app-container {
+                flex-direction: column;
+            }
+        }
+
+        /* Sidebar */
         .sidebar {
             width: 320px;
-            background-color: #262626;
-            padding: 20px;
-            box-sizing: border-box;
+            background-color: var(--bg-sidebar);
+            padding: 24px;
             display: flex;
             flex-direction: column;
-            border-right: 1px solid #404040;
+            gap: 20px;
+            border-right: 1px solid var(--border);
+            flex-shrink: 0;
         }
-        .content {
-            flex: 1;
-            background-color: #0d0d0d;
-            padding: 20px;
-            overflow-y: auto;
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+            }
         }
-        h2 { color: #00b4d8; margin-top: 0; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-size: 0.9em; color: #aaa; }
+
+        h2 {
+            color: var(--accent);
+            font-size: 1.3rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
         input {
             width: 100%;
-            padding: 10px;
-            background: #1a1a1a;
-            border: 1px solid #404040;
-            color: #fff;
-            border-radius: 4px;
-            box-sizing: border-box;
-        }
-        input:focus { border-color: #00b4d8; outline: none; }
-        button {
-            width: 100%;
             padding: 12px;
-            background-color: #00b4d8;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            border-radius: 8px;
+            font-size: 0.95rem;
+            transition: border-color 0.2s;
+        }
+
+        input:focus {
+            border-color: var(--accent);
+            outline: none;
+        }
+
+        .btn {
+            padding: 12px 18px;
+            background-color: var(--accent);
             border: none;
             color: #fff;
-            font-weight: bold;
-            border-radius: 4px;
+            font-weight: 600;
+            border-radius: 8px;
             cursor: pointer;
-            transition: background 0.2s;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
-        button:hover { background-color: #0096b6; }
-        
-        .manga-list {
-            margin-top: 20px;
+
+        .btn:hover {
+            background-color: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+
+        /* Main Content Area */
+        .content {
+            flex: 1;
+            padding: 32px;
+            overflow-y: auto;
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                padding: 20px;
+            }
+        }
+
+        .manga-grid {
+            margin-top: 24px;
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 15px;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
         }
+
+        /* Manga Cards */
         .manga-card {
-            background: #262626;
-            border: 1px solid #404040;
-            border-radius: 6px;
-            padding: 15px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
+            gap: 16px;
+            transition: border-color 0.2s, transform 0.2s;
         }
-        .manga-info h3 { margin: 0 0 5px 0; color: #00b4d8; }
-        .manga-info p { margin: 0 0 15px 0; font-size: 0.85em; color: #aaa; word-break: break-all; }
-        .manga-actions {
+
+        .manga-card:hover {
+            border-color: #444450;
+        }
+
+        .manga-card.editing {
+            border-color: var(--accent);
+        }
+
+        .manga-info h3 {
+            color: var(--text-main);
+            font-size: 1.2rem;
+            margin-bottom: 4px;
+        }
+
+        .manga-info .chapter-badge {
+            display: inline-block;
+            background: #2b2b36;
+            color: var(--accent);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .manga-info .url-preview {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            word-break: break-all;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* Action Controls */
+        .card-actions {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            border-top: 1px solid #404040;
-            padding-top: 10px;
+            border-top: 1px solid var(--border);
+            padding-top: 14px;
+            gap: 8px;
+            flex-wrap: wrap;
         }
+
         .status-checkbox {
             display: flex;
             align-items: center;
             gap: 8px;
             cursor: pointer;
-            font-size: 0.9em;
+            font-size: 0.9rem;
+            user-select: none;
         }
-        .status-checkbox input { width: auto; cursor: pointer; }
-        .btn-read {
-            background-color: #2a9d8f;
-            padding: 6px 12px;
-            width: auto;
-            font-size: 0.9em;
-            text-decoration: none;
-            color: white;
-            border-radius: 4px;
-            font-weight: bold;
-        }
-        .btn-read:hover { background-color: #21867a; }
-        .btn-delete {
-            background: none;
-            border: none;
-            color: #ff4d4d;
+
+        .status-checkbox input {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--green);
             cursor: pointer;
-            width: auto;
-            padding: 0;
-            font-size: 0.9em;
         }
-        .btn-delete:hover { text-decoration: underline; }
-        .loading { color: #666; }
+
+        .btn-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-sm {
+            padding: 8px 12px;
+            font-size: 0.85rem;
+            border-radius: 6px;
+            text-decoration: none;
+        }
+
+        .btn-read {
+            background-color: var(--green);
+            color: white;
+            font-weight: 600;
+        }
+
+        .btn-read:hover {
+            background-color: #21867a;
+        }
+
+        .btn-edit {
+            background-color: #3a3a46;
+            color: var(--text-main);
+        }
+
+        .btn-edit:hover {
+            background-color: #484857;
+        }
+
+        .btn-delete {
+            background-color: transparent;
+            color: var(--red);
+            border: 1px solid rgba(230, 57, 70, 0.3);
+        }
+
+        .btn-delete:hover {
+            background-color: var(--red);
+            color: white;
+        }
+
+        .edit-form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .empty-state {
+            color: var(--text-muted);
+            text-align: center;
+            margin-top: 60px;
+            font-size: 1.1rem;
+        }
     </style>
 </head>
 <body>
 
-    <div class="sidebar">
-        <h2>Ajouter un Scan</h2>
-        <div class="form-group">
-            <label>Nom du Manga</label>
-            <input type="text" id="mangaName" placeholder="Ex: Kingdom">
+    <div class="app-container">
+        <!-- Barre Latérale d'Ajout -->
+        <div class="sidebar">
+            <h2>📖 Nouveau Scan</h2>
+            <div class="form-group">
+                <label for="mangaName">Manga</label>
+                <input type="text" id="mangaName" placeholder="Ex: Kingdom">
+            </div>
+            <div class="form-group">
+                <label for="mangaChapter">Chapitre</label>
+                <input type="text" id="mangaChapter" placeholder="Ex: Chapitre 831">
+            </div>
+            <div class="form-group">
+                <label for="mangaUrl">Lien du Scan</label>
+                <input type="url" id="mangaUrl" placeholder="https://sushiscan.net/...">
+            </div>
+            <button id="addBtn" class="btn">🚀 Enregistrer</button>
         </div>
-        <div class="form-group">
-            <label>Numéro ou titre du Chapitre</label>
-            <input type="text" id="mangaChapter" placeholder="Ex: Chapitre 831">
+
+        <!-- Zone Principale des Cartes -->
+        <div class="content">
+            <h2>Mes Lectures en cours</h2>
+            <div class="manga-grid" id="mangaGrid">
+                <p class="empty-state">Chargement de votre bibliothèque...</p>
+            </div>
         </div>
-        <div class="form-group">
-            <label>Lien du scan</label>
-            <input type="text" id="mangaUrl" placeholder="https://sushiscan.net/...">
-        </div>
-        <button id="addBtn">➕ Enregistrer</button>
     </div>
 
-    <div class="content">
-        <h2>Mes Chapitres Sauvegardés (Cloud)</h2>
-        <div class="manga-list" id="mangaListContainer">
-            <p class="loading">Connexion à Firebase...</p>
-        </div>
-    </div>
-
-    <!-- SDK Firebase Modules (v10+) -->
+    <!-- SDK Firebase v10 (Realtime Database) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { 
-            getFirestore, 
-            collection, 
-            addDoc, 
-            onSnapshot, 
-            updateDoc, 
-            deleteDoc, 
-            doc, 
-            query, 
-            orderBy 
-        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+            getDatabase, 
+            ref, 
+            push, 
+            onValue, 
+            update, 
+            remove 
+        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // configuration de votre projet Firebase
         const firebaseConfig = {
-            apiKey: "VOTRE_API_KEY",
-            authDomain: "VOTRE_AUTH_DOMAIN",
-            projectId: "VOTRE_PROJECT_ID",
-            storageBucket: "VOTRE_STORAGE_BUCKET",
-            messagingSenderId: "VOTRE_MESSAGING_SENDER_ID",
-            appId: "VOTRE_APP_ID"
+            apiKey: "AIzaSyCvxEVUS0Av-BmyJ2JxH3sri7-fAI0BCQk",
+            authDomain: "scan-hihi.firebaseapp.com",
+            databaseURL: "https://scan-hihi-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "scan-hihi",
+            storageBucket: "scan-hihi.firebasestorage.app",
+            messagingSenderId: "7375315107",
+            appId: "1:7375315107:web:7fb05a0aef21fa7309df16",
+            measurementId: "G-YGVV55MFS3"
         };
 
-        // Initialisation de Firebase et Firestore
+        // Initialisation de Firebase
         const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const lecturesCollection = collection(db, "lectures");
+        const db = getDatabase(app);
+        const scansRef = ref(db, 'scans');
 
-        const nameInput = document.getElementById('mangaName');
-        const chapterInput = document.getElementById('mangaChapter');
-        const urlInput = document.getElementById('mangaUrl');
-        const listContainer = document.getElementById('mangaListContainer');
+        const mangaNameInput = document.getElementById('mangaName');
+        const mangaChapterInput = document.getElementById('mangaChapter');
+        const mangaUrlInput = document.getElementById('mangaUrl');
+        const mangaGrid = document.getElementById('mangaGrid');
+        const addBtn = document.getElementById('addBtn');
 
-        // Écoute en temps réel des changements dans Firestore
-        const q = query(lecturesCollection, orderBy("createdAt", "desc"));
-        onSnapshot(q, (snapshot) => {
-            listContainer.innerHTML = '';
-            
-            if (snapshot.empty) {
-                listContainer.innerHTML = '<p style="color: #666;">Aucun chapitre enregistré dans la base.</p>';
+        // Écoute en temps réel des changements Firebase Realtime Database
+        onValue(scansRef, (snapshot) => {
+            mangaGrid.innerHTML = '';
+            const data = snapshot.val();
+
+            if (!data) {
+                mangaGrid.innerHTML = '<p class="empty-state">Aucun chapitre enregistré pour le moment.</p>';
                 return;
             }
 
-            snapshot.forEach((docSnap) => {
-                const item = docSnap.data();
-                const id = docSnap.id;
-
+            // Génération dynamique des cartes
+            Object.keys(data).forEach((id) => {
+                const item = data[id];
                 const card = document.createElement('div');
                 card.className = 'manga-card';
+                card.id = `card-${id}`;
+
                 card.innerHTML = `
-                    <div class="manga-info">
-                        <h3>${item.name}</h3>
-                        <strong style="color: #aaa; font-size: 0.9em;">${item.chapter}</strong>
-                        <p>${item.url}</p>
+                    <div class="card-content" id="view-${id}">
+                        <div class="manga-info">
+                            <h3>${escapeHtml(item.name)}</h3>
+                            <span class="chapter-badge">${escapeHtml(item.chapter)}</span>
+                            <p class="url-preview">${escapeHtml(item.url)}</p>
+                        </div>
+                        <div class="card-actions">
+                            <label class="status-checkbox">
+                                <input type="checkbox" ${item.read ? 'checked' : ''} data-id="${id}" class="toggle-read">
+                                ${item.read ? '✅ Lu' : '⏳ À lire'}
+                            </label>
+                            <div class="btn-group">
+                                <a href="${escapeHtml(item.url)}" target="_blank" class="btn btn-sm btn-read" data-id="${id}">Lire ↗</a>
+                                <button class="btn btn-sm btn-edit" data-id="${id}">✏️</button>
+                                <button class="btn btn-sm btn-delete" data-id="${id}">🗑️</button>
+                            </div>
+                        </div>
                     </div>
-                    <div class="manga-actions">
-                        <label class="status-checkbox">
-                            <input type="checkbox" ${item.read ? 'checked' : ''} data-id="${id}" class="toggle-read">
-                            ${item.read ? '✅ Lu' : '⏳ À lire'}
-                        </label>
-                        <a href="${item.url}" target="_blank" class="btn-read" data-id="${id}">Lire ↗</a>
-                        <button class="btn-delete" data-id="${id}">Supprimer</button>
+
+                    <div class="edit-form" id="edit-${id}" style="display: none;">
+                        <input type="text" id="edit-name-${id}" value="${escapeHtml(item.name)}">
+                        <input type="text" id="edit-chapter-${id}" value="${escapeHtml(item.chapter)}">
+                        <input type="url" id="edit-url-${id}" value="${escapeHtml(item.url)}">
+                        <div class="btn-group" style="margin-top: 8px;">
+                            <button class="btn btn-sm btn-read save-edit" data-id="${id}">Enregistrer</button>
+                            <button class="btn btn-sm btn-edit cancel-edit" data-id="${id}">Annuler</button>
+                        </div>
                     </div>
                 `;
-                listContainer.appendChild(card);
+
+                mangaGrid.appendChild(card);
             });
 
-            // Ajout des événements sur les éléments générés
-            document.querySelectorAll('.toggle-read').forEach(cb => {
-                cb.addEventListener('change', (e) => toggleRead(e.target.dataset.id, e.target.checked));
-            });
-            document.querySelectorAll('.btn-read').forEach(btn => {
-                btn.addEventListener('click', (e) => markAsRead(e.target.dataset.id));
-            });
-            document.querySelectorAll('.btn-delete').forEach(btn => {
-                btn.addEventListener('click', (e) => deleteLecture(e.target.dataset.id));
-            });
+            attachEvents();
         });
 
-        // Ajouter un document dans Firestore
-        document.getElementById('addBtn').addEventListener('click', async () => {
-            const name = nameInput.value.trim();
-            const chapter = chapterInput.value.trim();
-            const url = urlInput.value.trim();
+        // Ajouter un chapitre
+        addBtn.addEventListener('click', () => {
+            const name = mangaNameInput.value.trim();
+            const chapter = mangaChapterInput.value.trim();
+            const url = mangaUrlInput.value.trim();
 
             if (!name || !chapter || !url) {
                 alert('Veuillez remplir tous les champs.');
                 return;
             }
 
-            try {
-                await addDoc(lecturesCollection, {
-                    name: name,
-                    chapter: chapter,
-                    url: url,
-                    read: false,
-                    createdAt: new Date()
-                });
+            push(scansRef, {
+                name,
+                chapter,
+                url,
+                read: false,
+                timestamp: Date.now()
+            });
 
-                chapterInput.value = '';
-                urlInput.value = '';
-            } catch (error) {
-                console.error("Erreur d'ajout Firestore :", error);
-            }
+            mangaChapterInput.value = '';
+            mangaUrlInput.value = '';
         });
 
-        // Modifier le statut Lu/À lire
-        async function toggleRead(id, isChecked) {
-            const docRef = doc(db, "lectures", id);
-            await updateDoc(docRef, { read: isChecked });
+        // Attachement des événements dynamiques (checkbox, edit, delete)
+        function attachEvents() {
+            // Toggle Lu / À lire
+            document.querySelectorAll('.toggle-read').forEach(cb => {
+                cb.addEventListener('change', (e) => {
+                    const id = e.target.dataset.id;
+                    update(ref(db, `scans/${id}`), { read: e.target.checked });
+                });
+            });
+
+            // Marquer comme lu lors du clic sur le bouton "Lire"
+            document.querySelectorAll('.btn-read[target="_blank"]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = e.target.dataset.id;
+                    update(ref(db, `scans/${id}`), { read: true });
+                });
+            });
+
+            // Bouton Modifier (Afficher le formulaire d'édition)
+            document.querySelectorAll('.btn-edit').forEach(btn => {
+                if (btn.classList.contains('cancel-edit')) return;
+                btn.addEventListener('click', (e) => {
+                    const id = e.target.dataset.id;
+                    document.getElementById(`view-${id}`).style.display = 'none';
+                    document.getElementById(`edit-${id}`).style.display = 'flex';
+                    document.getElementById(`card-${id}`).classList.add('editing');
+                });
+            });
+
+            // Annuler l'édition
+            document.querySelectorAll('.cancel-edit').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = e.target.dataset.id;
+                    document.getElementById(`view-${id}`).style.display = 'block';
+                    document.getElementById(`edit-${id}`).style.display = 'none';
+                    document.getElementById(`card-${id}`).classList.remove('editing');
+                });
+            });
+
+            // Sauvegarder la modification
+            document.querySelectorAll('.save-edit').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = e.target.dataset.id;
+                    const name = document.getElementById(`edit-name-${id}`).value.trim();
+                    const chapter = document.getElementById(`edit-chapter-${id}`).value.trim();
+                    const url = document.getElementById(`edit-url-${id}`).value.trim();
+
+                    if (!name || !chapter || !url) {
+                        alert('Les champs ne peuvent pas être vides.');
+                        return;
+                    }
+
+                    update(ref(db, `scans/${id}`), { name, chapter, url });
+                });
+            });
+
+            // Supprimer
+            document.querySelectorAll('.btn-delete').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = e.target.dataset.id;
+                    if (confirm('Voulez-vous vraiment supprimer ce scan ?')) {
+                        remove(ref(db, `scans/${id}`));
+                    }
+                });
+            });
         }
 
-        // Marquer comme lu au clic sur le lien externe
-        async function markAsRead(id) {
-            const docRef = doc(db, "lectures", id);
-            await updateDoc(docRef, { read: true });
-        }
-
-        // Supprimer de la base
-        async function deleteLecture(id) {
-            if (confirm('Supprimer ce chapitre de Firebase ?')) {
-                const docRef = doc(db, "lectures", id);
-                await deleteDoc(docRef);
-            }
+        // Sécurité contre les XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
     </script>
 </body>
